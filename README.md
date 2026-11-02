@@ -38,22 +38,22 @@ A `UserProfile` stores:
 
 ### How a song is scored
 
-Each song gets a score from 0 to 1. It is a weighted sum of how well the song matches the user:
+Each song earns points for how well it matches the user, for a maximum of 9.0. Every point added is listed as a reason, for example `genre match ('lofi' vs 'lofi') (+2.00)`.
 
-| Feature | Weight | How it is scored |
+| Feature | Max points | How it is scored |
 |---|---|---|
-| Energy | 0.35 | Closeness to the target: `1 - abs(song - target)` |
-| Mood | 0.25 | Exact match earns full credit. A related mood earns half credit (for example `chill` and `relaxed`). |
-| Valence | 0.20 | Closeness to the target valence |
-| Genre | 0.15 | Exact match earns full credit. A related genre earns half credit (for example `pop` and `indie pop`). |
-| Acousticness | 0.05 | Closeness to the user's preference |
+| Energy | 3.5 | Scaled by closeness to the target: `3.5 * (1 - abs(song - target))` |
+| Valence | 2.0 | Scaled by closeness to the target valence |
+| Genre | 2.0 | Exact match earns the full 2.0. A related genre earns half (for example `pop` and `indie pop`). |
+| Mood | 1.0 | Exact match earns the full 1.0. A related mood earns half (for example `chill` and `relaxed`). |
+| Acousticness | 0.5 | Scaled by closeness to the user's preference |
 
-Why these weights:
+Why these points:
 
-- **Energy ranks highest.** It is the only feature with many different values across the catalog, so it separates songs best.
-- **Mood outranks genre.** In this catalog most genres appear once, so a large genre weight would boost a single song and drown out everything else. Mood describes how a song feels, and it groups many genres together.
+- **Energy counts the most.** It is the only feature with many different values across the catalog, so it separates songs best.
+- **Genre is a fixed bonus.** Most genres appear only once in this catalog, so it works like a tiebreaker for songs that fit the user's taste.
 - **Related labels get partial credit.** This keeps near matches from scoring zero.
-- **Missing preferences are dropped.** If a user gives no preference for a feature, that feature is left out and the remaining weights are renormalized.
+- **Missing preferences earn nothing.** If a user gives no preference for a feature, songs earn no points for it, so the maximum possible score for that user is lower.
 
 ### How songs are chosen
 
