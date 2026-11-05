@@ -1,4 +1,5 @@
 import csv
+from collections import Counter
 from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass, asdict
 
@@ -41,13 +42,16 @@ POINTS = {
 }
 MAX_SCORE = sum(POINTS.values())
 
+# Most songs of one genre allowed in a single recommendation list.
+MAX_PER_GENRE = 2
+
 # Related labels earn partial credit instead of an all-or-nothing match.
 PARTIAL_CREDIT = 0.5
 RELATED_MOODS = [
     {"chill", "relaxed", "focused", "peaceful"},
     {"intense", "aggressive"},
     {"happy", "uplifting", "euphoric"},
-    {"moody", "melancholic", "nostalgic"},
+    {"moody", "melancholic", "nostalgic", "sad"},
 ]
 RELATED_GENRES = [
     {"rock", "metal"},
@@ -63,8 +67,25 @@ def _closeness(value: float, target: float) -> float:
     return max(0.0, 1.0 - abs(value - target))
 
 
+def _norm(label: str) -> str:
+    """Lowercase and trim a label so 'Rock ' matches 'rock'."""
+    return label.strip().lower()
+
+
+def _validate_prefs(user_prefs: Dict) -> None:
+    """Reject empty profiles and numeric targets outside 0-1."""
+    keys = ("target_energy", "target_valence", "favorite_mood", "favorite_genre", "likes_acoustic")
+    if all(user_prefs.get(k) is None for k in keys):
+        raise ValueError("user profile has no preferences to score against")
+    for k in ("target_energy", "target_valence"):
+        v = user_prefs.get(k)
+        if v is not None and not 0.0 <= v <= 1.0:
+            raise ValueError(f"{k} must be between 0 and 1, got {v}")
+
+
 def _label_match(value: str, favorite: str, groups: List[set]) -> float:
     """1.0 for an exact match, PARTIAL_CREDIT for related labels, else 0.0."""
+    value, favorite = _norm(value), _norm(favorite)
     if value == favorite:
         return 1.0
     if any(value in g and favorite in g for g in groups):
@@ -131,6 +152,7 @@ def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
         closeness, i.e. max_points * (1 - abs(song value - target)).
     Features the user gave no preference for earn nothing.
     """
+    _validate_prefs(user_prefs)
     score = 0.0
     reasons: List[str] = []
 
@@ -152,11 +174,12 @@ def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
         c = _closeness(song["valence"], target_valence)
         add("valence", c, f"valence {song['valence']:.2f} is {abs(song['valence'] - target_valence):.2f} from target")
 
-    favorite_mood = user_prefs.get("favorite_mood")
-    if favorite_mood is not None:
-        m = _label_match(song["mood"], favorite_mood, RELATED_MOODS)
-        kind = "match" if m == 1.0 else "similar"
-        add("mood", m, f"mood {kind} ('{song['mood']}' vs '{favorite_mood}')")
+    # TEMP experiment: mood check disabled
+    # favorite_mood = user_prefs.get("favorite_mood")
+    # if favorite_mood is not None:
+    #     m = _label_match(song["mood"], favorite_mood, RELATED_MOODS)
+    #     kind = "match" if m == 1.0 else "similar"
+    #     add("mood", m, f"mood {kind} ('{song['mood']}' vs '{favorite_mood}')")
 
     favorite_genre = user_prefs.get("favorite_genre")
     if favorite_genre is not None:
@@ -178,10 +201,23 @@ def recommend_songs(user_prefs: Dict, songs: List[Dict], k: int = 5) -> List[Tup
 
     Scores every song with score_song and returns the top k as
     (song, score, explanation), highest score first. Ties sort by title.
+    No genre takes more than MAX_PER_GENRE slots, so a dense cluster (for example
+    three lofi tracks) cannot fill the whole list. If the cap leaves fewer than k
+    songs, the best skipped songs fill the remaining slots.
     """
     scored = (
         (song, score, "; ".join(reasons))
         for song in songs
         for score, reasons in [score_song(user_prefs, song)]
     )
-    return sorted(scored, key=lambda r: (-r[1], r[0]["title"]))[:k]
+    ranked = sorted(scored, key=lambda r: (-r[1], r[0]["title"]))
+
+    picked, skipped, per_genre = [], [], Counter()
+    for rec in ranked:
+        genre = rec[0]["genre"]
+        if per_genre[genre] < MAX_PER_GENRE:
+            per_genre[genre] += 1
+            picked.append(rec)
+        else:
+            skipped.append(rec)
+    return (picked + skipped)[:k] if len(picked) < k else picked[:k]

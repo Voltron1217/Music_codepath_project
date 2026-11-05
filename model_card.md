@@ -70,29 +70,25 @@ Prompts:
 
 ## 6. Limitations and Bias 
 
-Where the system struggles or behaves unfairly. 
+The system over prioritize pop because its the majority genre in my dataset of selected songs. It doesnt follow the user song they select. Scoring the weight can more readable for the person seeing what is the best song out there. 
 
-Prompts:  
-
-- Features it does not consider  
-- Genres or moods that are underrepresented  
-- Cases where the system overfits to one preference  
-- Ways the scoring might unintentionally favor some users  
+- **Energy gap favors the middle.** The penalty is linear and symmetric, so mid-range songs are never far from anyone. Across 132 synthetic numeric-only users, *Library Rain* reached the top 5 for 61 of them and *Island Breeze* for 21.
+- **Extreme tastes are served worse.** The quietest song has energy 0.18, so a user targeting 0.0 can earn at most 2.87 of 3.5 energy points. The catalog is also lopsided: 8 songs at energy 0.7 or higher, 5 at 0.4 or lower.
+- **Filter bubble in the low-energy cluster.** Five songs sit at energy 0.3 to 0.4, and the top-5 scores for a 0.3 target differ by only 0.25. Chill/lofi users got near-identical lists. A cap of 2 songs per genre now reduces this, but it does not add songs the catalog lacks.
+- **Genre is a one-slot bonus.** 12 of 15 genres have one song, so a hip hop, reggae or classical fan gets one on-genre match and then the same filler as everyone else. The related-genre groups are hand-written: lofi has two related genres, while classical, hip hop, reggae and R&B have none.
+- **Features not used.** Tempo and danceability are stored but never scored, and `likes_acoustic` is yes/no rather than a degree. The related-mood groups lean calm: "confident" and "romantic" have no neighbors.
+- **Feedback-loop risk.** If the planned popularity ranking fed back into scoring, popular songs would be recommended more and added more.
 
 ---
 
 ## 7. Evaluation  
 
-How you checked whether the recommender behaved as expected. 
+Profiles run through `python3 -m src.main` (output in the README): Chill lofi, Intense rock, and adversarial cases: high energy + sad, high energy + peaceful classical, unknown genre/mood, messy labels (`"Rock "`, `"INTENSE"`), happy labels with low valence, out-of-range energy, and an empty profile. This is the person favorite type of music when doing something active.
 
-Prompts:  
-
-- Which user profiles you tested  
-- What you looked for in the recommendations  
-- What surprised you  
-- Any simple tests or comparisons you ran  
-
-No need for numeric metrics unless you created some.
+- **What I looked for:** whether label matches could outweigh large numeric mismatches, and whether bad input failed quietly.
+- **What surprised me:** genre plus mood is worth 3 points, enough to put a 0.18-energy classical song at #1 for a 0.95-energy user. Messy labels silently lost their match points.
+- **Fixes made:** labels are lowercased and trimmed, invalid targets and empty profiles raise an error, "sad" joined the melancholic mood group, and each genre is limited to 2 slots per list.
+- **Experiment:** with the mood check disabled, only the order of close results changed (for example the three lofi songs reordered), and the top score fell by exactly 1.0.
 
 ---
 
@@ -116,5 +112,8 @@ A few sentences about your experience.
 Prompts:  
 
 - What you learned about recommender systems  
+I have learned that the system might not go in the right way you wanted and i need to figure out why its not working. trying to debug something
 - Something unexpected or interesting you discovered  
+I discover that the output changes every single time i run main.py and that there are different result.
 - How this changed the way you think about music recommendation apps  
+It made me change on how much it got to change and keep track of the user task in music. Weighting how much the person like this music.

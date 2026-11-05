@@ -44,10 +44,41 @@ def main() -> None:
             "favorite_genre": "rock", "favorite_mood": "intense",
             "target_energy": 0.92, "target_valence": 0.50, "likes_acoustic": False,
         },
+        # Adversarial / edge-case profiles
+        "Conflict: high energy + sad": {
+            "favorite_genre": "folk", "favorite_mood": "sad",
+            "target_energy": 0.9, "target_valence": 0.2, "likes_acoustic": True,
+        },
+        "Conflict: high energy + peaceful classical": {
+            "favorite_genre": "classical", "favorite_mood": "peaceful",
+            "target_energy": 0.95, "target_valence": 0.4, "likes_acoustic": True,
+        },
+        "Unknown genre and mood": {
+            "favorite_genre": "k-pop", "favorite_mood": "dreamy",
+            "target_energy": 0.7, "target_valence": 0.7, "likes_acoustic": False,
+        },
+        "Messy labels ('Rock ', 'INTENSE')": {
+            "favorite_genre": "Rock ", "favorite_mood": "INTENSE",
+            "target_energy": 0.9, "target_valence": 0.5, "likes_acoustic": False,
+        },
+        "Happy labels, low valence": {
+            "favorite_genre": "pop", "favorite_mood": "happy",
+            "target_energy": 0.8, "target_valence": 0.1, "likes_acoustic": False,
+        },
+        "Out-of-range energy (invalid)": {
+            "favorite_genre": "edm", "favorite_mood": "euphoric",
+            "target_energy": 1.5, "target_valence": 0.5, "likes_acoustic": False,
+        },
+        "Empty profile (invalid)": {},
     }
 
     for name, user_prefs in profiles.items():
-        print_recommendations(name, recommend_songs(user_prefs, songs, k=5))
+        try:
+            recs = recommend_songs(user_prefs, songs, k=5)
+        except ValueError as err:
+            print(f"\nSkipped {name}: {err}")
+            continue
+        print_recommendations(name, recs)
 
 
 if __name__ == "__main__":
